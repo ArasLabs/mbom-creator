@@ -1,0 +1,21 @@
+﻿<AML>
+ <Item type="Item Action" id="B43013EE4DD7478883A678548EC0D2EB" action="add">
+  <related_id keyed_name="create_new_mbom" type="Action">
+   <Item type="Action" id="D3FDA8F38E1E473BADF8EC7D655D9F56" action="add">
+    <item_query>&lt;Item type="{@type}" id="{@id}" levels= "1" action="get" /&gt;</item_query>
+    <label xml:lang="en">Create New MBOM</label>
+    <location>client</location>
+    <method keyed_name="create_new_mbom" type="Method">
+     <Item type="Method" action="get" select="id">
+      <name>create_new_mbom</name>
+     </Item>
+    </method>
+    <target>none</target>
+    <type>item</type>
+    <name>create_new_mbom</name>
+   </Item>
+  </related_id>
+  <sort_order>1664</sort_order>
+  <source_id keyed_name="Part" type="ItemType" name="Part">4F1AC04A2B484F3ABA4E20DB63808A88</source_id>
+ </Item>
+</AML>

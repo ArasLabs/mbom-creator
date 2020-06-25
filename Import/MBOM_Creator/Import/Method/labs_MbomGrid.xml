@@ -1,0 +1,679 @@
+﻿<AML>
+ <Item type="Method" id="DF9B19B911954C9CB7E23EABEEF3EB08" action="add">
+  <execution_allowed_to keyed_name="World" type="Identity">A73B655731924CD0B027E4F4D5FCC0A9</execution_allowed_to>
+  <method_code><![CDATA[MbomGrid = function labs_MbomGrid() {
+ this.mbomGrid = null;
+ this.tempStore = [];
+ this.innTopPlan = null;
+};
+ 
+MbomGrid.prototype = {
+    
+ init() {
+ // Gotta use an intermediate variable because the context item in the callback function of the clientControlsFactory is not our MbomGrid object
+ var mbomTreeGrid;
+ var self = this;
+ clientControlsFactory.createControl("Aras.Client.Controls.Public.TreeGridContainer", 
+ {
+    id: "mbom_control", 
+    connectId: "mbomGrid", 
+    canEdit_Experimental: function(rowId, field) {
+        var columnIndex = self.mbomGrid.columns_Experimental.get(field, 'index');
+		return self.onBeginEditCell(rowId, columnIndex);
+    }
+    
+    
+ }, 
+ function(control) {
+ mbomTreeGrid = control;
+ // Set up events here
+
+      clientControlsFactory.on(mbomTreeGrid,
+        {
+            // Set up whatever other events 
+            "gridMenuInit" : self.onGridMenuInit.bind(self),
+            "onRowClick" : function(){},
+            "onRowDblClick": function(){},
+            "gridClick" : function(){},
+            "gridDoubleClick": function(){},
+			"onApplyEdit_Experimental": function (rowId, field, value) {
+				var columnIndex = self.mbomGrid.columns_Experimental.get(field, 'index');
+				return self.onEndEditCell(rowId,columnIndex);
+			},
+            "onStyleRow" : this.styleIt
+        })
+
+ });
+ this.mbomGrid = mbomTreeGrid;
+ this.mbomGrid.grid_Experimental.onStyleRow = this.styleIt;
+
+ // initTree would be defined below
+ this.initTree();
+ this.fixGridHeight();
+  this.mbomGrid.expandAll();
+ },
+
+ onBeginEditCell(rowId,columnIndex){
+     var allowed = false
+
+    //Check if it's the root node && Quantity
+    var rootId;
+    if(this.innTopPlan.isCollection()){
+        rootId = this.innTopPlan.getItemByIndex(0).getRelationships("mpp_ProcessPlanProducedPart").getItemByIndex(0).getRelatedItemID();
+    }else{
+        rootId = this.innTopPlan.getRelationships("mpp_ProcessPlanProducedPart").getItemByIndex(0).getRelatedItemID();
+    }
+    //if it's the root node
+    if(this.mbomGrid.getCellValue(rowId,5)==rootId){
+        //and it's the quantity
+        if(columnIndex==3){
+            allowed = true;
+        }
+    //else if it's any other row
+    }else{
+        //Check that we clicked on Sequence or Quantity
+        if(columnIndex==2||columnIndex==3){
+            allowed= true;
+        }
+    }
+    return allowed;
+ },
+ 
+ onEndEditCell(rowId,columnIndex){
+    //Look up item by the ID in the row, 
+    var rowID = this.mbomGrid.getCellValue(rowId,6);
+    //use XPath
+    //The one you should use after you add the relationship id to the mpp_operationconsumedpart as a attribute, not just as a property
+    var rowOperationConsumedPart = mbomGrid.innTopPlan.getItemsByXPath("//Item[@type='mpp_OperationConsumedPart' and @id='"+rowID+"']");
+    var rowItem = rowOperationConsumedPart.getRelatedItem();
+    
+    //that returns the item you want, and changes will propogate back up to where you need them to be. (We're pretty sure)
+
+    //then set the property for the column we're at
+    //Why are we setting it on both the rowItem and on the rowOperationConsumedpart? Because it's really actually only supposed to be on the rowOperationConsumedPart, but I didn't realize this until the last step of the project so everywhere else I'm storing it on the item itself. This way we can still read from the part when displaying the grid, but it will save correctly.
+    if(columnIndex == 2){
+        rowItem.setProperty("sequence",this.mbomGrid.getCellValue(rowId,columnIndex));
+        rowOperationConsumedPart.setProperty("sequence",this.mbomGrid.getCellValue(rowId,columnIndex));
+    }else if(columnIndex == 3){
+        rowItem.setProperty("quantity", this.mbomGrid.getCellValue(rowId,columnIndex));
+        rowOperationConsumedPart.setProperty("quantity", this.mbomGrid.getCellValue(rowId,columnIndex));
+    }
+    //then return, you don't need to return anything
+    return;
+ },
+ 
+ 
+/* Controls what options you have on the MBOM right click context menu */
+    onGridMenuInit(rowId){
+        var ctxMenu = this.mbomGrid.getMenu();
+        ctxMenu.removeAll(); // <-- I think they do this partially because it lets you offer different actions based on what's selected. We'll leave it here in case there's some other reason
+        // For each context menu action you want to add do something like below
+        ctxMenu.add(null, "Add Phantom", null, {
+            "onClick" : function(rowId) {
+                // The code that happens when you click it
+                //Values of the parent
+                var parentObj = {};
+                parentObj.itemNumber = this.mbomGrid.getCellValue(rowId,0);
+                parentObj.revision = this.mbomGrid.getCellValue(rowId,1);
+                parentObj.sortOrder = this.mbomGrid.getCellValue(rowId,2);
+                parentObj.quantity = this.mbomGrid.getCellValue(rowId,3);
+                parentObj.name = this.mbomGrid.getCellValue(rowId,4);
+                parentObj.id = this.mbomGrid.getCellValue(rowId,5);
+                parentObj.relationshipId = this.mbomGrid.getCellValue(rowId,6);
+                parentObj.side = this.mbomGrid.getCellValue(rowId,8);
+                
+                // We need to pass the ID of the form into the dialog
+                var formNd = top.aras.getItemByName("Form", "_labs_phantom_creator", 0);
+                // Set the arguments being passed to the dialog
+                var param = {
+                	title: "New Phantom",
+                	aras: top.aras,
+                	formId: formNd.getAttribute("id"),
+                	isEditMode: true,
+                	grid: this.mbomGrid
+                };
+                
+                // Set the size of the resulting dialog
+                var options = {
+                	dialogWidth: 500,
+                	dialogHeight: 250
+                };
+                
+                // This will be called after the dialog is closed
+                let result = null;
+                 var callback = {
+                	oncancel: function(dialogWrapper) {
+                		result = dialogWrapper.result;
+                		if (result.name) {
+                            var phantomObj = {};
+                            phantomObj.itemNumber = result.number;
+                            phantomObj.revision = "";
+                            phantomObj.sortOrder = "";
+                            phantomObj.quantity = "1";
+                            phantomObj.name = result.name;
+                            phantomObj.id = aras.generateNewGUID();
+                            phantomObj.relationshipId = aras.generateNewGUID();
+                            phantomObj.classification = "Phantom";
+                            phantomObj.side = "EBOM";
+                            
+                            window.mbomGrid.addItemToStore(phantomObj,parentObj);
+                            return phantomObj;
+                		}
+                	}
+                };
+                
+                // Open the dialog
+                var topWnd = top.aras.getMostTopWindowWithAras();
+                var wnd = topWnd ? topWnd : window;
+                wnd.aras.modalDialogHelper.show('DefaultPopup', wnd, param, options, 'ShowFormAsADialog.html', callback);
+            }.bind(this),
+            // The icon you want to use. I think this is optional, but we can set it to the icon for a Phantom since that's pretty explanatory
+            icon: '../images/Phantom.svg' // <-- Remember that most code is executed from the context of the '/Client/scripts/' folder, so this path is relative to that
+        });
+        
+        ctxMenu.add(null, "Add Part", null, {
+            "onClick" : function(rowId) {
+               //Values of the parent
+                var parentObj = {};
+                parentObj.itemNumber = this.mbomGrid.getCellValue(rowId,0);
+                parentObj.revision = this.mbomGrid.getCellValue(rowId,1);
+                parentObj.sortOrder = this.mbomGrid.getCellValue(rowId,2);
+                parentObj.quantity = this.mbomGrid.getCellValue(rowId,3);
+                parentObj.name = this.mbomGrid.getCellValue(rowId,4);
+                parentObj.id = this.mbomGrid.getCellValue(rowId,5);
+                parentObj.relationshipId = this.mbomGrid.getCellValue(rowId,6);
+                parentObj.classification = this.mbomGrid.getCellValue(rowId,7)
+                parentObj.side = this.mbomGrid.getCellValue(rowId,8);     
+                
+                var param = {
+                	aras: top.aras,
+                	type: 'SearchDialog',
+                	dialogWidth: 900,
+                	dialogHeight: 700,
+                	itemtypeName: 'Part'
+                };
+                
+                // Set the size of the resulting dialog
+                var options = {
+                	dialogWidth: 900,
+                	dialogHeight: 700
+                };
+                
+                 var callback = {
+                	oncancel: function(dialogWrapper) {
+                		result = dialogWrapper.result;
+                        if(result.item){
+                            var itemObj = {};
+                            itemObj.itemNumber = result.item.getElementsByTagName("keyed_name")[0].textContent;
+                            itemObj.revision = result.item.getElementsByTagName("major_rev")[0].textContent;
+                            itemObj.sortOrder = "";
+                            itemObj.quantity = "1";
+                            itemObj.name = result.item.getElementsByTagName("name")[0].textContent;
+                            itemObj.id = result.item.getElementsByTagName("id")[0].textContent;
+                            itemObj.relationshipId = aras.generateNewGUID();
+                            itemObj.classification = result.item.getElementsByTagName("classification")[0].textContent;
+                            itemObj.side = "EBOM";
+                            
+                            window.mbomGrid.addItemToStore(itemObj,parentObj);
+                            return itemObj;
+                        }
+                	}
+                }
+                
+                var topWnd = top.aras.getMostTopWindowWithAras();
+                var wnd = topWnd ? topWnd : window;
+                wnd.aras.modalDialogHelper.show('DefaultPopup', wnd, param, options, 'ShowFormAsADialog.html',callback);
+            }.bind(this),
+            // The icon you want to use. I think this is optional, but we can set it to the icon for a Phantom since that's pretty explanatory
+            icon: '../images/Part.svg' // <-- Remember that most code is executed from the context of the '/Client/scripts/' folder, so this path is relative to that
+        });
+        
+        ctxMenu.add(null, "Remove Part", null, {
+            "onClick" : function(rowId) {
+               //Values of the target
+                var targetObj = {};
+                targetObj.itemNumber = window.mbomGrid.mbomGrid.getCellValue(rowId,0);
+                targetObj.revision = window.mbomGrid.mbomGrid.getCellValue(rowId,1);
+                targetObj.sortOrder = window.mbomGrid.mbomGrid.getCellValue(rowId,2);
+                targetObj.quantity = window.mbomGrid.mbomGrid.getCellValue(rowId,3);
+                targetObj.name = window.mbomGrid.mbomGrid.getCellValue(rowId,4);
+                targetObj.id = window.mbomGrid.mbomGrid.getCellValue(rowId,5);
+                targetObj.relationshipId = window.mbomGrid.mbomGrid.getCellValue(rowId,6);
+                targetObj.side = window.mbomGrid.mbomGrid.getCellValue(rowId,8);   
+                
+                //remove it
+                window.mbomGrid.recursiveDropRemove(targetObj);
+                window.mbomGrid.rebuildFromIOM();
+            }
+        }); 
+    },
+
+ addItemToStore(dragged,droppedOn){
+     //get drop target. Level below that.
+     //if droppedOn is not undefined, then they did drag it over something.
+    if ('undefined' !== typeof droppedOn) {
+        //find if our element was dragged from MBOM, and if so remove the old version of that row
+        if("MBOM"==dragged.side){
+            this.recursiveDropRemove(dragged);
+            this.tempStore = this.recursiveDropAdd(dragged,droppedOn);
+        //check if it's from the ebom, look to see if dragged has a .iomPart AND if that iomPart indicates children
+        }else if (dragged.iomPart && (dragged.iomPart.getRelationships("Part BOM").getItemCount()>0)){
+           //If so, we need to do some parsing into mpp_ProcessPlan land
+          this.convertEbomToMbom(dragged,droppedOn);
+        //else it's from the ebom and it doesn't have sub-parts 
+        }else {
+            //it's now going to be on the MBOM
+            dragged.side = "MBOM";
+            //find the row our dragged element was dropped on, and add as child.
+            this.tempStore = this.recursiveDropAdd(dragged,droppedOn);
+        }
+    }
+    //Our store IOM changed, so now we need to refresh the view.
+    this.rebuildFromIOM();
+ },
+ 
+ //Function for converting a part->part BOM->part->part BOM structure into a Process Plan->ProducedPart & Operation->Operation Consumed Part structure
+ convertEbomToMbom(dragged,droppedOn){
+    //add this row.
+    dragged.side = "MBOM";
+    this.recursiveDropAdd(dragged,droppedOn);
+    //if the part has part boms (the floor is always a part)
+    //if (dragged.){
+        //for each part bom in part
+        for (var i=0, length = dragged.iomPart.getRelationships("Part BOM").getItemCount(); i<length; i++){
+            //convert the part bom and part to look like dragged
+            //var newDragged = this.pseudoClone(dragged.iomPart);
+            var nextPart = dragged.iomPart.getRelationships("Part BOM").getItemByIndex(i).getRelatedItem();
+            nextPart = this.pseudoClone(nextPart);
+            
+            //then recur, passing the conversion as Dragged and the thing we added above as DroppedOn.
+            this.convertEbomToMbom(nextPart,dragged);
+        }
+    //}
+ },
+ 
+ pseudoClone(part){
+    var newPart = {};
+    newPart.id = part.getProperty("id");
+    newPart.generation = part.getProperty("generation");
+    newPart.revision=part.getProperty("major_rev");
+    newPart.itemNumber = part.getProperty("item_number");
+    newPart.classification = part.getProperty("itemtype");
+    newPart.quantity = part.getProperty("quantity");
+    newPart.sortOrder= part.getProperty("sort_order");
+    newPart.relationshipId = part.getProperty("relationship_id");
+    newPart.name = part.getProperty("name");
+    
+    newPart.iomPart = part;
+     
+    return newPart;
+ },
+ 
+ //Removes the row given in the parameter, and all children.
+ //WARNING: Might cause unexpected behavior if some of the child trees were in use elsewhere.
+ recursiveDropRemove(dragged){
+    //Look through the Process Plans to see if one of those was dragged
+    for(var i = 0, planLength = this.innTopPlan.getItemCount(); i<planLength;i++){
+        var foundIt = false;
+        var tempPP = this.innTopPlan.getItemByIndex(i);
+        var producedPart = tempPP.getRelationships("mpp_ProcessPlanProducedPart").getItemByIndex(0);
+        
+        //Check their consumed parts
+        var consumedParts = tempPP.getRelationships("mpp_Operation").getItemByIndex(0).getRelationships("mpp_OperationConsumedPart");
+        for(var j = 0, partLength = consumedParts.getItemCount(); j<partLength;j++){
+            //if you found it
+            consumedPart = consumedParts.getItemByIndex(j);
+            if(consumedPart.getProperty("related_id")==dragged.id){
+                //we found it
+                foundIt = true
+                //remove it.
+                tempPP.getRelationships("mpp_Operation").getItemByIndex(0).removeRelationship(consumedPart);
+                //if there are no more consumed parts
+                if(tempPP.getRelationships("mpp_Operation").getItemByIndex(0).getRelationships("mpp_OperationConsumedPart").getItemCount()==0){
+                    //delete the process plan.
+                    this.innTopPlan.RemoveItem(tempPP);
+                }
+            }
+        }
+        if(foundIt){
+            break;
+        }
+    }
+ },
+ 
+ getServerPlan(itemNum){
+     debugger;
+     amlPlanExists= `<AML>
+        <Item type="mpp_ProcessPlan" select="item_number" action = "get">
+            <item_number>${itemNum}</item_number>
+        </Item>
+    </AML>`;
+    var exists = aras.IomInnovator.applyAML(amlPlanExists);
+    //We get an error if there's no process plan by that name.
+    if(exists.getErrorString().length>0){
+        return false;
+    }else{
+        return exists;
+    }
+ },
+ 
+ //for finding which parent to append the dropped element to.
+ /*
+-Process Plan
+--Operation
+---Consumed Part
+----Part 1.1
+---Consumed Part
+----Part 1.2
+--Produced Part
+---Part 1
+-Process Plan
+--Produced Part
+---Part 1.1
+--Operation
+---Consumed Part
+----Part 1.1.1
+*/
+ recursiveDropAdd(dragged, droppedOn){
+
+    //Check the collection of Process Plans
+    var processPlan = null;
+
+    for(var i = 0, length = this.innTopPlan.getItemCount(); i<length;i++){
+        var tempPP = this.innTopPlan.getItemByIndex(i);
+        var producedPart = tempPP.getRelationships("mpp_ProcessPlanProducedPart").getItemByIndex(0);
+        //If the thing we dropped on has children, it will have a process plan with a produced part whose ID matches our droppedOn part's ID
+        if(producedPart.getProperty("related_id")==droppedOn.id){
+            processPlan = tempPP;
+            break;
+        }
+    }
+
+    // If we don't find a matching produced part, check if there's a process plan like that on the server side.
+    //var existingPlan = this.getServerPlan(dragged.itemNumber);
+    // debugger;
+    // if(existingPlan){
+    //     debugger;
+    // }else{
+    //     debugger;
+    // }
+    
+    //if not, create a new process plan
+    // Set processPlan to that new process plan 
+    if (processPlan == null){
+        // Add a new process plan
+        //make a new process plan;
+        var processPlan = this.innTopPlan.newItem("mpp_ProcessPlan", "add");
+        processPlan.setProperty("item_number",droppedOn.itemNumber);
+        
+        //make the relationship to the produced part
+        var tempIOMProducedPart = processPlan.createRelationship("mpp_ProcessPlanProducedPart", "add");
+        processPlan.setAttribute("id",aras.generateNewGUID());
+        
+        //make the produced part
+        var tempIOMPartForProd = aras.IomInnovator.newItem("Part", "get");
+        if(dragged.classification=="Phantom"){
+            tempIOMPartForProd.setAction("create");
+        }
+        tempIOMPartForProd = this.objToIom(droppedOn,tempIOMPartForProd);
+    
+        tempIOMProducedPart.setRelatedItem(tempIOMPartForProd);   
+        
+        //make the operation
+        var operation = processPlan.createRelationship("mpp_Operation","add");
+        operation.setAttribute("id",aras.generateNewGUID());
+        operation.setProperty("sort_order","10");
+        
+        //make a child part and make the consumed part
+        this.addPartAndConsumedPart(processPlan,dragged) ;            
+                     
+        this.innTopPlan.appendItem(processPlan);
+    }else{
+        //Add an operation to processPlan variable
+        //make a child part and make the consumed part
+        this.addPartAndConsumedPart(processPlan,dragged);
+    }
+ },
+ 
+ addPartAndConsumedPart(processPlan,dragged){
+        //make the child part
+        var tempIOMPart = this.innTopPlan.newItem("Part", "get");
+        if(dragged.classification=="Phantom"){
+            tempIOMPart.setAction("create");
+        }
+        tempIOMPart = this.objToIom(dragged,tempIOMPart);
+        tempIOMPart.setAttribute("id", tempIOMPart.getProperty("id"))
+        
+        //make the consumed part
+        var operation = processPlan.getRelationships("mpp_Operation").getItemByIndex(0);
+        var operationConsumedPart = operation.createRelationship("mpp_OperationConsumedPart","add");
+        operationConsumedPart.setAttribute("id", tempIOMPart.getProperty("relationship_id"));
+        var relatedPart = operationConsumedPart.setRelatedItem(tempIOMPart);
+ },
+ 
+ objToIom(obj,iom){
+    iom.setProperty("item_number",obj.itemNumber);
+    iom.setProperty("major_rev",obj.revision);
+    iom.setProperty("sort_order",obj.sortOrder);
+    iom.setProperty("quantity",obj.quantity);
+    iom.setProperty("name",obj.name);
+    iom.setProperty("id",obj.id);
+    iom.setProperty("relationship_id",obj.relationshipId);
+    iom.setProperty("classification",obj.classification);
+    iom.setProperty("side",obj.side);
+    
+    iom.setAttribute("id",obj.id);
+
+    return iom;
+ },
+ 
+ rebuildFromIOM(){
+     //set the heads and columns. Note that we'll need to close the table later
+    var xmlString = this.getBaseTemplate();
+
+    //root row. 
+    xmlString += this.getParsedIOM(this.innTopPlan, 0); 
+    
+    //close the table
+    xmlString += "</table>";
+
+    //clear the rows
+    this.mbomGrid.removeAllRows();
+    //add them all back in
+    this.mbomGrid.addXMLRows(xmlString, true);
+    this.mbomGrid.expandAll();
+    
+ },
+ 
+ getParsedIOM(data, level){
+    var fullData = null;
+    //When data is a collection, you need to start looping through to find all the opperations.
+    if(data.isCollection()){
+        fullData = data;
+        //the zeroth element will always be the "root" part
+        data = data.getItemByIndex(0);
+    }
+     
+    var imagePath = "";
+    //if the classification is Phantom, 
+    if(("Phantom" == data.getProperty("classification"))){
+        imagePath = "../images/Phantom.svg";
+    //or the thing is a process plan for a phantom
+    }else if((data.getRelationships("mpp_ProcessPlanProducedPart").getItemCount()>0)&&("Phantom"==data.getRelationships("mpp_ProcessPlanProducedPart").getItemByIndex(0).getRelatedItem("Part").getProperty("classification"))){
+        imagePath = "../images/Phantom.svg";
+    }else{
+        imagePath = "../images/Part.svg";
+    }
+    
+     var dataRow = "";
+     var rowPart = null;
+    //Sometimes you get a process plan, not a part.
+    if(data.getAttribute("type")=="mpp_ProcessPlan"){
+        var rowPart = data.getRelationships("mpp_ProcessPlanProducedPart").getItemByIndex(0).getRelatedItem("Part");
+    }else{
+        rowPart = data;
+    }
+    
+    // Build table row in xml form
+    dataRow = 
+    `
+    <tr level="${level}" icon0="${imagePath}" icon1="${imagePath}" class = "dragClass">
+        <userdata key="gridData_rowItemID" value="${rowPart.getProperty("id")}" />
+        <td>${rowPart.getProperty("item_number", "")}</td>
+        <td>${rowPart.getProperty("major_rev", "")}</td>
+        <td>${rowPart.getProperty("sort_order", "")}</td>
+        <td>${rowPart.getProperty("quantity", "")}</td>
+        <td>${rowPart.getProperty("name", "")}</td>
+        <td>${rowPart.getID()}</td>
+        <td>${rowPart.getProperty("relationship_id", "")}</td>
+        <td>${rowPart.getProperty("classification", "")}</td>
+        <td>${rowPart.getProperty("side", "")}</td>
+    `;
+        
+        
+    var operations = data.getRelationships("mpp_Operation");
+    //If there is an operation, there is only one operation, which is always a collection
+    if(operations.isCollection() && (0<operations.getItemCount())){
+        var op = operations.getItemByIndex(0);
+        var consumedParts = op.getRelationships("mpp_OperationConsumedPart");
+        
+        //figure out what the produced part is
+        var prodPart = data.getRelationships("mpp_ProcessPlanProducedPart").getItemByIndex(0).getRelatedItem("Part");
+        prodPartId = prodPart.getId();
+
+        //For each consumed part
+        for (var i = 0, partLength = consumedParts.getItemCount(); i < partLength; i++)
+        {
+            part = consumedParts.getItemByIndex(i);
+            partItem = part.getRelatedItem();
+            
+            var tempRow = partItem;
+            //for each process plan in our top collection
+            for (var j = 0, opLength = this.innTopPlan.getItemCount(); j < opLength; j++){
+                //get the id of the produced part for that process plan
+                var potential = this.innTopPlan.getItemByIndex(j).getRelationships("mpp_ProcessPlanProducedPart").getItemByIndex(0);
+                //if the consumed part and the produced part for that process plan match
+                if(partItem.getId()==potential.getProperty("related_id")){
+                    tempRow = this.innTopPlan.getItemByIndex(j);
+                }   
+            }
+
+            //Parse it into XML
+            dataRow+=this.getParsedIOM(tempRow,level+1);
+        }
+    }
+    dataRow+="</tr>";
+    return dataRow;
+    
+    //close the row
+    dataRow += "</tr>";
+    return dataRow;
+ },
+ 
+ 
+ styleIt(inRow) {
+    inRow.node.firstChild.setAttribute('draggable', true);
+ },
+ 
+ fixGridHeight() {
+    var el = document.getElementById("mbomGrid");
+
+    el.children[0].children[1].children[0].style.height = "100px";
+    el.children[0].children[1].children[0].children[2].style.height = "100%";
+
+    aras.fixLiquidContainerHeight(document, el);
+ },
+ 
+ initTree() {
+ 
+    var xmlPile = this.getBaseTemplate();
+
+    var amlBody = `<AML>
+						<Item type="Part" select="name,item_number,id,major_rev,generation,type" action="get" id="${parent.dialogArguments.selectedItem.id}">
+						</Item>
+					</AML>`;
+					
+    var data = aras.IomInnovator.applyAML(amlBody);
+
+    xmlPile += this.getParsedIOM(data, 0);    
+    xmlPile += "</table>";
+
+    this.mbomGrid.InitXML(xmlPile, true);
+    
+    //create the initial, head object in STORE
+    var tempObj = {};
+    tempObj.itemNumber = data.getProperty("item_number","");
+    tempObj.revision = data.getProperty("major_rev","");
+    tempObj.sortOrder = data.getProperty("sort_order","");
+    tempObj.quantity = data.getProperty("quantity","");
+    tempObj.name = data.getProperty("name","");
+    tempObj.id = data.getID();
+    tempObj.relationshipId = data.getProperty("relationship_id","");
+    tempObj.classification = data.getProperty("classification","");
+    tempObj.side = "MBOM";
+    //put that object on the tempStore.
+    this.tempStore.push(tempObj);
+    
+    // kickstart the IOM version
+    //make the process plan
+    this.innTopPlan = aras.IomInnovator.newItem("mpp_ProcessPlan", "add");
+    this.innTopPlan.setProperty("item_number",data.getProperty("item_number"));
+    
+    //make the relationship to the produced part
+    var tempIOMProducedPart = this.innTopPlan.createRelationship("mpp_ProcessPlanProducedPart", "add");
+    //make the part
+    var tempIOMPart = data;
+    tempIOMPart.setProperty("side",tempObj.side);
+    this.objToIom(tempObj,tempIOMPart)
+    
+    var operation = this.innTopPlan.createRelationship("mpp_Operation","add");
+    operation.setProperty("id",aras.generateNewGUID());
+    operation.setProperty("sort_order","10");
+    
+    tempIOMProducedPart.setRelatedItem(tempIOMPart);
+
+    //reload the entire XML for the tree.
+    this.rebuildFromIOM();
+ },
+
+ getBaseTemplate(dataRows) {
+     var baseXml = `<?xml version="1.0" encoding="utf-8"?>
+<table font="Microsoft Sans Serif-8" sel_bgColor="steelbue" sel_TextColor="white" header_BgColor="buttonface" expandroot="true" expandall="false" treelines="1" editable="true" draw_grid="true" multiselect="true" column_draggable="true" enableHtml="false" enterAsTab="false" bgInvert="true" 
+    xmlns:msxsl="urn:schemas-microsoft-com:xslt" 
+    xmlns:aras="http://www.aras.com" 
+    xmlns:usr="urn:the-xml-files:xslt">
+    <thead>
+        <th align="c">Part Number</th>
+        <th align="c">Revision</th>
+        <th align="c">Sequence</th>
+        <th align="c">Quantity</th>
+        <th align="c">Name</th>
+        <th align="c">ID</th>
+        <th align="c">relationship ID</th>
+        <th align="c">Type</th>
+        <th align="c">Side</th>
+    </thead>
+    <columns>
+        <column width="220" edit="NOEDIT" align="l" order="0" />
+        <column width="60" edit="NOEDIT" align="c" order="1" />
+        <column width="60" edit="FIELD" align="c" order="2" sort="numeric"/>
+        <column width="60" edit="FIELD" align="c" order="3" sort="numeric"/>
+        <column width="270" edit="NOEDIT" align="l" order="5" />
+        <column width="0" edit="NOEDIT" align="l" order="6" />
+        <column width="0" edit="NOEDIT" align="l" order="7" />
+        <column width="0" edit="NOEDIT" align="l" order="8" />
+        <column width="0" edit="NOEDIT" align="l" order="9" />
+    </columns>
+    <menu>
+        <emptytag/>
+    </menu>`
+     
+     return baseXml;
+ },
+
+}
+]]></method_code>
+  <method_type>JavaScript</method_type>
+  <name>labs_MbomGrid</name>
+ </Item>
+</AML>

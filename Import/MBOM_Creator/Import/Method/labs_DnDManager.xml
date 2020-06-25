@@ -1,0 +1,84 @@
+﻿<AML>
+ <Item type="Method" id="9EF0B2FB1EE94F08933094794DA99F3D" action="add">
+  <execution_allowed_to keyed_name="World" type="Identity">A73B655731924CD0B027E4F4D5FCC0A9</execution_allowed_to>
+  <method_code><![CDATA[DnDManager = function labs_DnDManager() {
+ this.DnD = null;
+ this.ebomModel = null;
+};
+ 
+DnDManager.prototype = {
+    init(source,target){
+
+        document.addEventListener("dragstart", function( event ) {
+            sourceColumns = event.target.firstChild.firstChild.children;
+
+            var valuesObj = {};
+            valuesObj.itemNumber = sourceColumns[0].innerText;
+            valuesObj.revision = sourceColumns[1].innerText;
+            valuesObj.sortOrder = sourceColumns[2].innerText;
+            valuesObj.quantity = sourceColumns[3].innerText;
+            valuesObj.name = sourceColumns[4].innerText;
+            valuesObj.id = sourceColumns[5].innerText;
+            //We wait to set the relationship ID until we've looked at which side it's coming from.
+            valuesObj.classification = sourceColumns[7].innerText;
+            valuesObj.side = sourceColumns[8].innerText;
+
+            
+            //If it's from the EBOM side, it needs a new GUID. If it's from the MBOM side, use the old one.
+            if("EBOM"==valuesObj.side){
+                valuesObj.relationshipId = aras.generateNewGUID();//sourceColumns[8].innerText;
+            }else{
+                valuesObj.relationshipId = sourceColumns[6].innerText;
+            }
+
+            this.dragSource = valuesObj;
+            
+            //make sure the target grid is on the dom
+            this.mbomArg = target;
+            this.ebomArg = source;
+            
+        }, false);
+          
+        document.addEventListener("dragend", function( event ) {
+            //We won't know if the drag source has children until we look for them.
+
+            //look for it the drag source by ID, looking in the EBOM dictionary. You should find it.
+            for (var key in this.ebomArg.itemDict){
+                if(this.ebomArg.itemDict[key].getID()==this.dragSource.id){
+                 //pass in that part. It'll contain all the subparts
+                 this.dragSource.iomPart = this.ebomArg.itemDict[key];
+                 break;
+                }
+            }            
+            
+            //addItemToStore needs to be able to handle children
+            document.mbomArg.addItemToStore(this.dragSource,this.dragDest);
+        }, false);
+          
+        document.addEventListener("dragover", function( event ) {
+                 landingSite = event.path[5];
+                 if(landingSite.getAttribute("class") == "dojoxGridRow"){
+                    destColumns = landingSite.firstChild.firstChild.firstChild.children;
+                    
+                    var valuesObj = {};
+                    valuesObj.itemNumber = destColumns[0].innerText;
+                    valuesObj.revision = destColumns[1].innerText;
+                    valuesObj.sortOrder = destColumns[2].innerText;
+                    valuesObj.quantity = destColumns[3].innerText;
+                    valuesObj.name = destColumns[4].innerText;
+                    valuesObj.id = destColumns[5].innerText;
+                    valuesObj.relationshipId = destColumns[6].innerText;
+                    valuesObj.classification = destColumns[7].innerText;
+                    valuesObj.side = destColumns[8].innerText;
+                    
+                    this.dragDest = valuesObj;
+                 }
+                 
+        }, false);
+    },
+
+}]]></method_code>
+  <method_type>JavaScript</method_type>
+  <name>labs_DnDManager</name>
+ </Item>
+</AML>

@@ -1,0 +1,89 @@
+﻿<AML>
+ <Item type="Form" id="9FD840A8E06A4DA9839781090C8A7E8B" action="add">
+  <category_form>0</category_form>
+  <height>234</height>
+  <stylesheet><![CDATA[../styles/default.css]]></stylesheet>
+  <width>699</width>
+  <name>_labs_phantom_creator</name>
+  <Relationships>
+   <Item type="Body" id="8EC366F7EA984774A75BC86A0EA35100" action="add">
+    <sort_order>128</sort_order>
+    <source_id keyed_name="_labs_phantom_creator" type="Form">9FD840A8E06A4DA9839781090C8A7E8B</source_id>
+    <Relationships>
+     <Item type="Field" id="18CA95E86E0A488A8EBFBA7E141C770E" action="add">
+      <border_width>0</border_width>
+      <display_length_unit>px</display_length_unit>
+      <field_type>button</field_type>
+      <font_color>#000000</font_color>
+      <font_family>arial, helvetica, sans-serif</font_family>
+      <font_size>8pt</font_size>
+      <font_weight>bold</font_weight>
+      <is_disabled>0</is_disabled>
+      <is_visible>1</is_visible>
+      <label xml:lang="en">Done</label>
+      <label_position>top</label_position>
+      <list_no_blank>0</list_no_blank>
+      <sort_order>128</sort_order>
+      <source_id keyed_name="8EC366F7EA984774A75BC86A0EA35100" type="Body">8EC366F7EA984774A75BC86A0EA35100</source_id>
+      <tab_stop>1</tab_stop>
+      <x>265</x>
+      <y>75</y>
+      <name>button0</name>
+      <Relationships>
+       <Item type="Field Event" id="974D626DE7E247A58A9A462519DEAFA1" action="add">
+        <field_event>onclick</field_event>
+        <related_id keyed_name="_labs_modal_return" type="Method">
+         <Item type="Method" action="get" select="id">
+          <name>_labs_modal_return</name>
+         </Item>
+        </related_id>
+        <sort_order>10</sort_order>
+        <source_id keyed_name="button0" type="Field">18CA95E86E0A488A8EBFBA7E141C770E</source_id>
+       </Item>
+      </Relationships>
+     </Item>
+     <Item type="Field" id="89C9292EAA854EB58C8B21FA68E6314D" action="add">
+      <border_width>0</border_width>
+      <display_length_unit>px</display_length_unit>
+      <field_type>text</field_type>
+      <font_color>#000000</font_color>
+      <font_family>arial, helvetica, sans-serif</font_family>
+      <font_size>8pt</font_size>
+      <font_weight>bold</font_weight>
+      <is_disabled>0</is_disabled>
+      <is_visible>1</is_visible>
+      <label xml:lang="en">name</label>
+      <label_position>top</label_position>
+      <list_no_blank>0</list_no_blank>
+      <sort_order>256</sort_order>
+      <source_id keyed_name="8EC366F7EA984774A75BC86A0EA35100" type="Body">8EC366F7EA984774A75BC86A0EA35100</source_id>
+      <tab_stop>1</tab_stop>
+      <x>50</x>
+      <y>20</y>
+      <name>name</name>
+     </Item>
+     <Item type="Field" id="6523B559C50C4AE4BF9612E106BC28B5" action="add">
+      <border_width>0</border_width>
+      <display_length_unit>px</display_length_unit>
+      <field_type>text</field_type>
+      <font_color>#000000</font_color>
+      <font_family>arial, helvetica, sans-serif</font_family>
+      <font_size>8pt</font_size>
+      <font_weight>bold</font_weight>
+      <is_disabled>0</is_disabled>
+      <is_visible>1</is_visible>
+      <label xml:lang="en">Number</label>
+      <label_position>top</label_position>
+      <list_no_blank>0</list_no_blank>
+      <sort_order>384</sort_order>
+      <source_id keyed_name="8EC366F7EA984774A75BC86A0EA35100" type="Body">8EC366F7EA984774A75BC86A0EA35100</source_id>
+      <tab_stop>1</tab_stop>
+      <x>195</x>
+      <y>20</y>
+      <name>number</name>
+     </Item>
+    </Relationships>
+   </Item>
+  </Relationships>
+ </Item>
+</AML>

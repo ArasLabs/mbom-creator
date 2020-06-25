@@ -1,0 +1,163 @@
+﻿<AML>
+ <Item type="Form" id="E775AA8C73C1420287DC56418622BF30" action="add">
+  <category_form>0</category_form>
+  <description>For making a new MBOM</description>
+  <height>800</height>
+  <stylesheet><![CDATA[../styles/default.css]]></stylesheet>
+  <width>1000</width>
+  <name>MBOM_Creator</name>
+  <Relationships>
+   <Item type="Body" id="6BC078F3CB19436788467DD15F4BFF75" action="add">
+    <css>#mbomContainer {
+     display: inline-block;
+     width:780px;
+}
+
+#ebomContainer {
+     display: inline-block;
+     width: 780px;
+}
+
+.dojoxGridRow{
+    draggable:true;
+    ondragstart:dragTest(event);
+}</css>
+    <sort_order>128</sort_order>
+    <source_id keyed_name="MBOM_Creator" type="Form">E775AA8C73C1420287DC56418622BF30</source_id>
+    <Relationships>
+     <Item type="Field" id="D8C87263017845A3BB37CAF900C7A30B" action="add">
+      <border_width>0</border_width>
+      <display_length_unit>px</display_length_unit>
+      <field_type>html</field_type>
+      <font_color>#000000</font_color>
+      <font_family>arial, helvetica, sans-serif</font_family>
+      <font_size>8pt</font_size>
+      <font_weight>bold</font_weight>
+      <html_code><![CDATA[<script>
+var foo = function(){
+
+}
+var mbomXMLString = "";
+var mbomGrid = null;
+var ebomGrid = null;
+//var ebomGrid;
+    var onload_handler = function() {
+
+        if (window.MbomGrid) {
+            mbomGrid = new MbomGrid();
+           mbomGrid.init();
+        }
+
+	if (window.EbomGrid) {
+		window.ebomGrid = new EbomGrid();
+		ebomGrid.init();
+	}
+
+
+	if (window.DnDManager){
+		var DnD = new DnDManager();
+		DnD.init(ebomGrid, mbomGrid);
+	}
+
+    }
+    window.addEventListener("load", onload_handler);
+</script>
+<div>
+    <!-- clientControlsFactory make a Toolbar-->
+    <div id="mbomCreatorToolbar"></div>
+    <div id="editorContainer">
+        <div id="ebomContainer">
+            <h3>EBOM</h3>
+            <!-- clientControlsFactory make a TreeGridContainer -->
+            <div id="ebomGrid"></div>
+        </div>
+		
+
+        <div id="mbomContainer">
+            <h3 draggable="true">MBOM</h3>
+            <!-- clientControlsFactory make a TreeGridContainer -->
+            <div id="mbomGrid"></div>
+        </div>
+     </div>
+</div>]]></html_code>
+      <is_disabled>0</is_disabled>
+      <is_visible>1</is_visible>
+      <label_position>top</label_position>
+      <list_no_blank>0</list_no_blank>
+      <sort_order>128</sort_order>
+      <source_id keyed_name="6BC078F3CB19436788467DD15F4BFF75" type="Body">6BC078F3CB19436788467DD15F4BFF75</source_id>
+      <tab_stop>1</tab_stop>
+      <x>0</x>
+      <y>0</y>
+      <name>Name</name>
+     </Item>
+     <Item type="Field" id="CAD835C818B94038B511A923CE62009D" action="add">
+      <border_width>0</border_width>
+      <container />
+      <css />
+      <display_length_unit>px</display_length_unit>
+      <field_type>button</field_type>
+      <font_color>#000000</font_color>
+      <font_family>arial, helvetica, sans-serif</font_family>
+      <font_size>8pt</font_size>
+      <font_weight>bold</font_weight>
+      <is_disabled>0</is_disabled>
+      <is_visible>1</is_visible>
+      <label xml:lang="en">Save</label>
+      <label_position>top</label_position>
+      <list_no_blank>0</list_no_blank>
+      <positioning>absolute</positioning>
+      <sort_order>384</sort_order>
+      <source_id keyed_name="6BC078F3CB19436788467DD15F4BFF75" type="Body">6BC078F3CB19436788467DD15F4BFF75</source_id>
+      <tab_stop>1</tab_stop>
+      <x>1486</x>
+      <y>9</y>
+      <name>save</name>
+      <Relationships>
+       <Item type="Field Event" id="AA2C562CDD7348CF86DCDA8FBA5CFFF0" action="add">
+        <field_event>onclick</field_event>
+        <related_id keyed_name="labs_mbom_creator_save" type="Method">
+         <Item type="Method" action="get" select="id">
+          <name>labs_mbom_creator_save</name>
+         </Item>
+        </related_id>
+        <sort_order>10</sort_order>
+        <source_id keyed_name="save" type="Field">CAD835C818B94038B511A923CE62009D</source_id>
+       </Item>
+      </Relationships>
+     </Item>
+    </Relationships>
+   </Item>
+   <Item type="Form Event" id="B2F5006921F9413B9891FE4625B0A0B1" action="add">
+    <form_event>onload</form_event>
+    <related_id keyed_name="labs_EbomGrid" type="Method">
+     <Item type="Method" action="get" select="id">
+      <name>labs_EbomGrid</name>
+     </Item>
+    </related_id>
+    <sort_order>20</sort_order>
+    <source_id keyed_name="MBOM_Creator" type="Form">E775AA8C73C1420287DC56418622BF30</source_id>
+   </Item>
+   <Item type="Form Event" id="1EB5293673E8411089E9B15D8FAFFD29" action="add">
+    <form_event>onload</form_event>
+    <related_id keyed_name="labs_MbomGrid" type="Method">
+     <Item type="Method" action="get" select="id">
+      <name>labs_MbomGrid</name>
+     </Item>
+    </related_id>
+    <sort_order>30</sort_order>
+    <source_id keyed_name="MBOM_Creator" type="Form">E775AA8C73C1420287DC56418622BF30</source_id>
+   </Item>
+   <Item type="Form Event" id="51FBD43E27ED4E1E99B5F9FAB15B4667" action="add">
+    <form_event>onload</form_event>
+    <related_id keyed_name="labs_DnDManager" type="Method">
+     <Item type="Method" action="get" select="id">
+      <name>labs_DnDManager</name>
+     </Item>
+    </related_id>
+    <sort_order>40</sort_order>
+    <source_id keyed_name="MBOM_Creator" type="Form">E775AA8C73C1420287DC56418622BF30</source_id>
+   </Item>
+  </Relationships>
+ </Item>
+</AML>

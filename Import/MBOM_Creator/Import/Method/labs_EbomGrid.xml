@@ -1,0 +1,190 @@
+﻿<AML>
+ <Item type="Method" id="2966031DC6AF487C87F15DD47CF12E05" action="add">
+  <execution_allowed_to keyed_name="World" type="Identity">A73B655731924CD0B027E4F4D5FCC0A9</execution_allowed_to>
+  <method_code><![CDATA[EbomGrid = function labs_EbomGrid() {
+ this.grid = null;
+ this.dataStore = null;
+ this.itemDict = {};
+ this.dragSource = [];
+ this.dragDest = [];
+};
+
+EbomGrid.prototype = {
+    
+ init() {
+ // Need to use an intermediate variable because the context item in the callback function of the clientControlsFactory is not our EbomGrid object
+ var treeGrid;
+ clientControlsFactory.createControl("Aras.Client.Controls.Public.TreeGridContainer", 
+ {id: "ebom_control", connectId: "ebomGrid"}, function(control) {
+     treeGrid = control;
+     // Set up events here
+
+     clientControlsFactory.on(treeGrid,{
+        "onStyleRow" : this.styleIt
+     });
+ });
+ this.grid = treeGrid;
+ // initTree would be defined below
+ this.grid.grid_Experimental.onStyleRow = this.styleIt;
+  
+ this.initTree();
+
+ this.grid.expandAll();
+ this.fixGridHeight(this.grid);
+ },
+ 
+styleIt(inRow) {
+    inRow.node.firstChild.setAttribute('draggable', true);
+    inRow.node.firstChild.setAttribute('ondragend', 'foo()');
+}, 
+ 
+ fixGridHeight(inputGrid) {
+    self=this.grid;
+    //make a function on timeout, because we want the data before we resize.
+	var resizeTreeGrid = function() {
+		setTimeout(function() {
+			var info = self.grid_Experimental.edit.info;
+			if (info && info.cell) {
+				//self.grid_Experimental.edit.apply();
+			}
+			//resize the grid itself
+			self.resize_Experimental();
+		}, 0);
+	};
+	//call our function on timeout
+	resizeTreeGrid();
+		
+    //get the grid element
+    var el = document.getElementById("ebomGrid");
+    //height of both the container and the grid being set to a hardcoded size
+    el.children[0].children[1].children[0].style.height = "100px";
+    el.children[0].children[1].children[0].children[2].style.height = "50%";
+    //experimental magic
+    aras.fixLiquidContainerHeight(document, el);
+ },
+ 
+ //builds the tree. Things you need for a tree- the base template, and at least one row of data.
+ initTree() {
+     //get the headers for the table.
+    var xmlString = this.getBaseTemplate();
+    //an AML query we'll use to get all of the items under our selected item.
+    var amlBody = `<AML>
+						<Item type="Part" select="name,item_number,id,major_rev,generation" action="GetItemRepeatConfig" id="${parent.dialogArguments.selectedItem.id}">
+							<Relationships>
+								<Item type="Part BOM" select="related_id,quantity,sort_order,reference_designator" repeatProp="related_id" repeatTimes="10"/>
+							</Relationships>
+						</Item>
+					</AML>`;
+					
+    //run the AML query, storing the restult.				
+    var data = aras.IomInnovator.applyAML(amlBody);
+    
+    //build up a list of each item and its corresponding ID. We do this since, if an item is represented in the EBOM more than once, it won't have all its data the second time it gets listed in data.
+    this.buildItemDictionary(data);
+    
+    //convert data to xml, and store in xmlString
+    xmlString += this.getParsedData(data, 0);    
+    //close the open table element
+    xmlString += "</table>";
+    
+    //save XML string to a variable for mbom refresh
+    mbomXMLString = xmlString;
+    this.grid.InitXML(xmlString, true);
+ },
+ 
+ //build a dictionary of all the parts.
+ buildItemDictionary(data) {
+    var itemInDict = this.itemDict[data.getID()];
+    if (!itemInDict && (data.getProperty("item_number", "") !== "")) {
+        this.itemDict[data.getID()] = data;
+    }
+    var dataBoms = data.getRelationships("Part BOM");
+    for (var i = 0, length = dataBoms.getItemCount(); i < length; i++)
+    {
+        var dataBom = dataBoms.getItemByIndex(i);
+        var relatedPart = dataBom.getRelatedItem();
+        
+        this.buildItemDictionary(relatedPart);
+    } 
+ },
+ 
+ getParsedData(data, level){
+    // Build table row in xml form
+    var dataRow = 
+    `
+    <tr level="${level}" icon0="../images/Part.svg" icon1="../images/Part.svg" class = "dragClass">
+        <userdata key="gridData_rowItemID" value="${data.getProperty("id")}" />
+        <td>${data.getProperty("item_number", "")}</td>
+        <td>${data.getProperty("major_rev", "")}</td>
+        <td>${data.getProperty("sort_order", "")}</td>
+        <td>${data.getProperty("quantity", "")}</td>
+        <td>${data.getProperty("name", "")}</td>
+        <td>${data.getProperty("id", "")}</td>
+        <td>${data.getProperty("relationship_id", "")}</td>
+        <td>${data.getProperty("type", "")}</td>
+        <td>EBOM</td>
+    `;
+    var dataBoms = data.getRelationships("Part BOM");
+    //for each relationship on the part
+    for (var i = 0, length = dataBoms.getItemCount(); i < length; i++)
+    {
+        //get the bom the relationship pointed to
+        var dataBom = dataBoms.getItemByIndex(i);
+        //get the part (using the dictionary, since repeated parts won't have all their data)
+        var relatedPart = this.itemDict[dataBom.getProperty("related_id", "")];
+        
+        //set temporary properties on the part, which use values from the relationship
+        relatedPart.setProperty("ref_deg", dataBom.getProperty("reference_designator", ""));
+        relatedPart.setProperty("quantity", dataBom.getProperty("quantity", ""));
+        relatedPart.setProperty("sort_order", dataBom.getProperty("sort_order", ""));
+        relatedPart.setProperty("relationship_id", dataBom.getProperty("relationship_id", ""));
+        
+        //add the xml form to our xml, which will include any children. Recur.
+        dataRow += this.getParsedData(relatedPart, level + 1);
+    }
+    
+    //close the row
+    dataRow += "</tr>";
+    return dataRow;
+ },
+
+ getBaseTemplate(dataRows) {
+     var baseXml = `<?xml version="1.0" encoding="utf-8"?>
+<table font="Microsoft Sans Serif-8" sel_bgColor="steelbue" sel_TextColor="white" header_BgColor="buttonface" expandroot="true" expandall="false" treelines="1" editable="false" draw_grid="true" multiselect="true" column_draggable="true" enableHtml="false" enterAsTab="false" bgInvert="true" 
+    xmlns:msxsl="urn:schemas-microsoft-com:xslt" 
+    xmlns:aras="http://www.aras.com" 
+    xmlns:usr="urn:the-xml-files:xslt">
+    <thead>
+        <th align="c">Part Number</th>
+        <th align="c">Revision</th>
+        <th align="c">Sequence</th>
+        <th align="c">Quantity</th>
+        <th align="c">Name</th>
+        <th align="c">ID</th>
+        <th align="c">Relationship ID</th>
+        <th align="c">Type</th>
+        <th align="c">Side</th>
+    </thead>
+    <columns>
+        <column width="220" edit="NOEDIT" align="l" order="0" />
+        <column width="60" edit="NOEDIT" align="c" order="1" />
+        <column width="60" edit="NOEDIT" align="c" order="2" sort="numeric"/>
+        <column width="60" edit="NOEDIT" align="c" order="3" sort="numeric"/>
+        <column width="270" edit="NOEDIT" align="l" order="4" />
+        <column width="0" edit="NOEDIT" align="l" order="5" />
+        <column width="0" edit="NOEDIT" align="l" order="6" />
+        <column width="0" edit="NOEDIT" align="l" order="7" />
+        <column width="0" edit="NOEDIT" align="l" order="8" />
+    </columns>
+    <menu>
+        <emptytag/>
+    </menu>`;
+     
+     return baseXml;
+ }
+};
+]]></method_code>
+  <method_type>JavaScript</method_type>
+  <name>labs_EbomGrid</name>
+ </Item>
+</AML>

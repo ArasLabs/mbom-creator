@@ -1,0 +1,46 @@
+﻿<AML>
+ <Item type="Method" id="088904233DDF4AAC95364090E30D5B3E" action="add">
+  <execution_allowed_to keyed_name="World" type="Identity">A73B655731924CD0B027E4F4D5FCC0A9</execution_allowed_to>
+  <method_code><![CDATA[
+//Is there already an mbom for this part?
+
+amlPlanExists= `<AML>
+    <Item type="mpp_ProcessPlan" select="item_number" action = "get">
+        <item_number>${inDom.getElementsByTagName("item_number")[0].innerHTML}</item_number>
+    </Item>
+</AML>`;
+var exists = aras.IomInnovator.applyAML(amlPlanExists);
+//We get an error if there's no process plan by that name.
+if(!exists.getErrorString().length>0){
+    aras.AlertError("There is already an MBOM for this part.");
+}else{
+    
+    // We need to pass the ID of the form into the dialog
+    var formNd = top.aras.getItemByName("Form", "MBOM_Creator", 0);
+    // Set the arguments being passed to the dialog
+    var param = {
+    	title: "MBOM Creator",
+    	aras: top.aras,
+    	selectedItem: inDom,
+    	formId: formNd.getAttribute("id"),
+    	isEditMode: true,
+    	dialogWidth: 1700,
+    	dialogHeight: 800,
+    	content: 'ShowFormAsADialog.html'
+    };
+    
+    // This will be called after the dialog is closed
+    function callback(res) {
+    
+    };
+    
+    // Open the dialog
+    var topWnd = top.aras.getMostTopWindowWithAras();
+    var wnd = topWnd ? topWnd : window;
+    wnd.ArasModules.MaximazableDialog.show('iframe', param).promise.then(callback);
+}
+]]></method_code>
+  <method_type>JavaScript</method_type>
+  <name>create_new_mbom</name>
+ </Item>
+</AML>

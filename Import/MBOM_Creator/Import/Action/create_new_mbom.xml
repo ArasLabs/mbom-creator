@@ -1,0 +1,15 @@
+﻿<AML>
+ <Item type="Action" id="D3FDA8F38E1E473BADF8EC7D655D9F56" action="add">
+  <item_query>&lt;Item type="{@type}" id="{@id}" levels= "1" action="get" /&gt;</item_query>
+  <label xml:lang="en">Create New MBOM</label>
+  <location>client</location>
+  <method keyed_name="create_new_mbom" type="Method">
+   <Item type="Method" action="get" select="id">
+    <name>create_new_mbom</name>
+   </Item>
+  </method>
+  <target>none</target>
+  <type>item</type>
+  <name>create_new_mbom</name>
+ </Item>
+</AML>
